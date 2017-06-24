@@ -8,7 +8,7 @@ output:
 
 ## Loading and preprocessing the data
 These are the libraries used to compile this code:
-```{r loading, results="hide"}
+```{r loading, message=F}
 library(knitr)
 library(dplyr)
 datazip <- "activity.zip"
@@ -40,6 +40,7 @@ The mean number of steps taken per day is `r format(msteps, digits=1)`, and the 
 mean_byint<-aggregate(steps ~ interval, d, mean)
 plot(steps ~ interval, type="l", data=mean_byint)
 ```
+
 2 - Here we find out what the maximum interval is, and when it occurrs  
 
 ```{r daily_max}
@@ -52,7 +53,53 @@ The interval with maximum average number is of steps taken is the one starting a
 
 
 ## Imputing missing values
+1 - Finding the missing values 
+```{r countmiss}
+cmiss<-count(d, is.na(steps))
+nmiss<-cmiss[[2,2]]
+nmiss 
+```
 
+
+2,3- Replacing missing values with mean of that interval for other days 
+```{r imputemiss}
+colnames(mean_byint) <- c("interval", "meansteps")
+dd<-right_join(d, mean_byint, by=c("interval","interval"))
+dd$steps_imp <- ifelse(is.na(dd$steps),dd$meansteps, dd$steps) 
+daily_imp <- aggregate(steps_imp ~ date, dd,sum)
+ds<-daily_imp$steps_imp
+```
+
+4 - This is a histogram of the data with missing values (NA) imputed
+```{r imputehist}
+hist(ds,main = "Histogram of total number of daily steps (NA imputed)")
+mds <-median(ds)
+medds <- mean(ds)
+```
+The mean of this new dataset is `r format(mds, digits=1)` and the median is `r format(medds, digits=1)`. 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+1 - Splitting weekdays and weekends:  
+```{r byweekday}
+dd$wkday = weekdays(as.Date(dd$date))
+dd$dayfac = as.factor(dd$wkday %in% c("Saturday","Sunday"))
+dd$wkendf <- factor(dd$dayfac, labels=c("Weekday", "Weekend"))
+mean_bywkd<-aggregate(steps_imp ~ interval + wkendf , dd, mean)
+wd <- mean_bywkd[mean_bywkd$wkendf=="Weekday",]
+we <- mean_bywkd[mean_bywkd$wkendf=="Weekend",]
+```
+
+2 - Plotting two line graphs, for weekdays and weekends
+```{r plotbywkday, fig.height=7}
+par(mfrow=c(2,1))
+plot(steps_imp ~ interval, type="l", data=wd, main="Weekdays", cex.main=0.8)
+plot(steps_imp ~ interval, type="l", data=we, main="Weekends", cex.main=0.8)
+mtext("Average number of steps taken during the day", side = 3, outer = TRUE, cex = 1 , col = "grey20")
+```
+
+
+
+
+
+
